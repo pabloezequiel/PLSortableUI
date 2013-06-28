@@ -1,1 +1,208 @@
-My GitHub Page
+<!DOCTYPE html>
+<html lang="en" data-ng-app="App">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1">
+  
+  <title>Sortable Grid</title>
+
+  <link href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/css/bootstrap-combined.no-icons.min.css" rel="stylesheet">
+  <link href="//netdna.bootstrapcdn.com/font-awesome/3.2.1/css/font-awesome.css" rel="stylesheet">
+  <link href="http://code.jquery.com/ui/1.10.3/themes/smoothness/jquery-ui.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/grid-sortable.css">
+  
+  <script src="lib/modernizr.custom.63321.min.js"></script>
+</head>
+
+<body>
+  
+  <div class="container-fluid" ng-controller="SortableCtrl">
+    <div class="row-fluid" data-pl-sortable-grid style="display: none">
+    
+      <!-- COLUMN 1 -->
+      <div class="span6 column" id="column_1">
+ 
+        <div class="portlet" id="portlet_1">
+          <div class="portlet-header" portlet-url="http://www.twitter.com">
+            First
+          </div>
+          <div class="portlet-content">
+            This is the first content.
+          </div>
+        </div>
+ 
+      	<div class="portlet" id="portlet_2">
+          <div class="portlet-header" portlet-url="http://www.linkedin.com">
+            Second
+          </div>
+          <div class="portlet-content">
+            This is the second content.
+          </div>
+        </div>
+      
+      </div>
+ 
+      <!-- COLUMN 2 -->
+      <div class="span6 column" id="column_2">
+ 
+        <div class="portlet" id="portlet_3">
+          <div class="portlet-header" portlet-url="http://www.facebook.com">
+            Third
+          </div>
+          <div class="portlet-content">
+            This is the third content.
+          </div>
+        </div>
+ 
+      </div>
+
+    </div>
+  </div>
+  
+  <script src="http://code.jquery.com/jquery-1.9.1.js"></script>
+	<script src="http://code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
+  <script src="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/js/bootstrap.min.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.0.6/angular.min.js"></script>
+  <script src="lib/angular-strap.min.js"></script>
+  
+  <script type="text/javascript" charset="utf-8">
+    
+    angular.module('App', ['App.controllers.sortable', 'OMxApp.directives', '$strap.directives']);
+    
+    angular.module('App.controllers.sortable', []).
+
+      controller('SortableCtrl', ['$scope', 
+        function($scope) {
+
+          $scope.tooltip = {
+            remove: 'Remove',
+            expand: 'Isolate portlet',
+            toggle: 'Toggle show/hide portlet'
+          };
+
+        }
+      ]);
+      
+    'use strict';
+    angular.module('OMxApp.directives', []).
+    
+      directive('plSortableGrid', function() {
+        return {
+          restrict: 'A',
+          compile: function compile(tElement, tAttrs, transclude) {
+            
+            // Append Toggle/Collape, remove and expand button
+            $( tElement )
+                    .find( ".portlet-header" )
+                    .append( "<a href='javascript:void(0)'><span class='icon-remove remove' bs-tooltip='tooltip.remove'></span></a>")
+                    .append( "<a href='javascript:void(0)'><span class='icon-collapse-alt handle' bs-tooltip='tooltip.toggle'></span></a>");
+              
+            $( tElement ).find( ".portlet-header" ).each(function(i, el) {
+              $(this).append("<a href='"+$(this).attr('portlet-url')+"' target='_blank' bs-tooltip='tooltip.expand'>" +
+                                "<span class='icon-external-link expand'></span>" +
+                             "</a>");
+            });
+            
+            
+            var portletOrder = {}
+            if (localStorage.getItem('portletOrder')) {
+              portletOrder = JSON.parse(localStorage.getItem('portletOrder'));
+              if ( ! $.isEmptyObject(portletOrder)) {
+          
+                // Get the current array of portlets and print as in it
+                tElement.find('.column').each(function(i, column) {
+                  var portlets = portletOrder[column.id];
+
+                  $.each(portlets, function(i, portletId) {
+                    var portlet = $(tElement).find('#' + portletId);
+                    portlet.addClass('visible'); // Add class as a flag
+                    $(column).append(portlet);
+                  });
+            
+                  // Remove portlets without the flag
+                  $(column).children().not('.visible').hide();
+                  $(column).children('.visible').show();
+                });
+          
+              }
+            } else {
+              // Initialize portlet order array
+              tElement.find('.column').each(function(i, column) {
+                portletOrder[column.id] = [];
+                $(column).find('.portlet').each(function(i, portlet) {
+                  portletOrder[column.id].push(portlet.id);
+                });
+              });
+              localStorage.setItem('portletOrder', JSON.stringify(portletOrder));
+            }
+            
+            tElement.show();
+            
+            return function postLink(scope, iElement) {              
+              $( iElement ).find('.column').sortable({
+                connectWith: ".column", // Connected with other columns
+                handle: ".portlet-header", // Div from you can drag the portlet
+                opacity: 0.5, // Portlet opacity when dragging
+                revert: 500, // Elapse time for the animation to position portlet
+                tolerance: "pointer",
+                start: function(e, ui) {
+                   // get current dragged portlete height and attach to the placeholder
+                  ui.placeholder.height(ui.item.height());
+                },
+                receive: function(e, ui) {
+                  // One of the columns recieve a portlet from another column
+                  var newOrder = {};
+                  if (localStorage.getItem('portletOrder')) {
+                    newOrder = JSON.parse(localStorage.getItem('portletOrder'));
+                  }
+                  newOrder[$(this).attr('id')] = $(this).sortable("toArray");
+                  if (ui.item.id) {
+                    newOrder[$(this).attr('id')].push(ui.item.id);
+                  }
+                  localStorage.setItem('portletOrder', JSON.stringify(newOrder));
+                },
+                stop: function(event, ui) {
+                  // When dragging a portlet finished
+                  var newOrder = {};
+                  if (localStorage.getItem('portletOrder')) {
+                    newOrder = JSON.parse(localStorage.getItem('portletOrder'));
+                  }
+                  newOrder[$(this).attr('id')] = $(this).sortable("toArray");
+                  localStorage.setItem('portletOrder', JSON.stringify(newOrder));
+                }
+              });
+
+              // Add click event to slide portlet content
+              $( iElement ).find ( ".portlet-header .handle" ).click(function() {
+                $( this ).toggleClass( "icon-collapse-alt" ).toggleClass( "icon-expand-alt" );
+                $( this ).parents( ".portlet:first" ).find( ".portlet-content" ).slideToggle();
+              });
+
+              // Add click event to remove portlet
+              $( iElement ).find ( ".portlet-header .remove" ).click(function() {
+
+                // Removes the portlet from the localStorage variable
+                var portlet_id = $( this ).parents( ".portlet:first" ).attr('id');          
+                var column_id = $( this ).parents( ".column:first" ).attr('id');
+          
+                if (localStorage.getItem('portletOrder')) {
+                  var portlets = JSON.parse(localStorage.getItem('portletOrder'));
+                  portlets[column_id] = $.grep(portlets[column_id], function(value) {
+                    return value != portlet_id;
+                  });
+                  localStorage.setItem('portletOrder', JSON.stringify(portlets));
+                }
+          
+                // Remove portlet from the UI
+                $( this ).parents( ".portlet:first" ).remove();
+              });
+        
+              $( iElement ).disableSelection();
+            }
+          }
+        }
+      });
+    
+  </script>
+</body>
+</html>
