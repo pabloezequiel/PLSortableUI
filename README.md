@@ -11,6 +11,8 @@ Run a virtual host (e.x. localhost/PLSortableUI)
 
 See it running.
 
+You can see a demo [here](http://pabloezequiel.github.io/PLSortableUI/).
+
 There are TODO's, I know, needs time...
 
 
